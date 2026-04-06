@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp_selenium"
-version = "1.0.0"
+version = "1.0.1"
 description = "Production-ready MCP server integrating Selenium 4 (BiDi) for browser automation"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -443,7 +443,7 @@ async def browser_status_resource() -> str:
 
 def main() -> None:
     """Start the MCP server."""
-    logger.info("selenium-mcp v1.0.0 starting via FastMCP (official SDK)")
+    logger.info("selenium-mcp v1.0.1 starting via FastMCP (official SDK)")
     mcp.run()
 
 
