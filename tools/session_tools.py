@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
-from driver.session_manager import SessionManager
 from tools.base import BaseTool
 
 logger = logging.getLogger("selenium_mcp.tools.session")
@@ -16,8 +14,8 @@ class SessionTools(BaseTool):
 
     def create_session(
         self,
-        browser: Optional[str] = None,
-        headless: Optional[bool] = None,
+        browser: str | None = None,
+        headless: bool | None = None,
     ) -> dict:
         """
         Create a new browser session.
@@ -59,7 +57,7 @@ class SessionTools(BaseTool):
             "sessions": sessions,
         }
 
-    def get_session_info(self, session_id: Optional[str] = None) -> dict:
+    def get_session_info(self, session_id: str | None = None) -> dict:
         """
         Return metadata for the specified (or default) session.
 

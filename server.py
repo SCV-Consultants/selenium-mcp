@@ -15,9 +15,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import sys
-from typing import Any, Dict, Optional
+from typing import Any
 
 from config.logging_config import configure_logging, get_logger
 from config.settings import settings
@@ -49,7 +48,7 @@ def _ok(request_id: Any, result: Any) -> dict:
 
 
 def _err(request_id: Any, code: int, message: str, data: Any = None) -> dict:
-    error: Dict[str, Any] = {"code": code, "message": message}
+    error: dict[str, Any] = {"code": code, "message": message}
     if data is not None:
         error["data"] = data
     return {"jsonrpc": "2.0", "id": request_id, "error": error}

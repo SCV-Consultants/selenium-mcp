@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import functools
 import logging
-from typing import Any, Callable, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from driver.session import BrowserSession
 from driver.session_manager import SessionManager
@@ -24,8 +25,8 @@ def with_error_screenshot(method: F) -> F:
     """
 
     @functools.wraps(method)
-    def wrapper(self: "BaseTool", *args: Any, **kwargs: Any) -> Any:
-        session: Optional[BrowserSession] = None
+    def wrapper(self: BaseTool, *args: Any, **kwargs: Any) -> Any:
+        session: BrowserSession | None = None
         try:
             # Try to resolve the session from common keyword args
             session_id = kwargs.get("session_id")
@@ -57,6 +58,6 @@ class BaseTool:
     def __init__(self, session_manager: SessionManager) -> None:
         self._session_manager = session_manager
 
-    def _get_session(self, session_id: Optional[str] = None) -> BrowserSession:
+    def _get_session(self, session_id: str | None = None) -> BrowserSession:
         """Resolve a session, auto-creating one if needed."""
         return self._session_manager.get_or_default(session_id)

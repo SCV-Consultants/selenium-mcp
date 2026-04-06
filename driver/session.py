@@ -5,13 +5,16 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from datetime import UTC
+from typing import TYPE_CHECKING, Any
 
 from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
-    TimeoutException as SeleniumTimeoutException,
     WebDriverException,
+)
+from selenium.common.exceptions import (
+    TimeoutException as SeleniumTimeoutException,
 )
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -25,6 +28,8 @@ from models.exceptions import (
     NavigationError,
     ScreenshotError,
     ScriptExecutionError,
+)
+from models.exceptions import (
     TimeoutError as MCPTimeoutError,
 )
 from models.network import ConsoleLog, NetworkLog, PerformanceMetrics
@@ -52,7 +57,7 @@ class BrowserSession:
         driver: WebDriver,
         browser: BrowserType,
         settings: Settings,
-        dispatcher: "EventDispatcher",
+        dispatcher: EventDispatcher,
         headless: bool,
     ) -> None:
         self._driver = driver
@@ -67,9 +72,9 @@ class BrowserSession:
             status=SessionStatus.READY,
         )
 
-        self._network_logs: List[NetworkLog] = []
-        self._console_logs: List[ConsoleLog] = []
-        self._intercept_patterns: List[str] = []
+        self._network_logs: list[NetworkLog] = []
+        self._console_logs: list[ConsoleLog] = []
+        self._intercept_patterns: list[str] = []
 
         logger.info("Session %s ready (%s, headless=%s)", self._session_id, browser.value, headless)
 
@@ -169,9 +174,13 @@ class BrowserSession:
         are identical, indicating the DOM has settled.
         """
         deadline = time.monotonic() + timeout
-        prev_len: Optional[int] = None
+        prev_len: int | None = None
         while time.monotonic() < deadline:
-            cur_len = self._driver.execute_script("return document.body ? document.body.innerHTML.length : 0;")
+            js = (
+                "return document.body"
+                " ? document.body.innerHTML.length : 0;"
+            )
+            cur_len = self._driver.execute_script(js)
             if cur_len == prev_len:
                 return
             prev_len = cur_len
@@ -205,7 +214,7 @@ class BrowserSession:
         except WebDriverException as exc:
             raise ScreenshotError(f"Screenshot failed: {exc}", self._session_id) from exc
 
-    def screenshot_on_error(self, label: str = "error") -> Optional[str]:
+    def screenshot_on_error(self, label: str = "error") -> str | None:
         """Take a best-effort screenshot; return base64 or None on failure."""
         if not self._settings.screenshot_on_error:
             return None
@@ -215,7 +224,7 @@ class BrowserSession:
 
             directory = self._settings.screenshot_directory
             os.makedirs(directory, exist_ok=True)
-            ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+            ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
             path = directory / f"{label}_{self._session_id[:8]}_{ts}.png"
             self._driver.save_screenshot(str(path))
             logger.info("[%s] Error screenshot saved: %s", self._session_id, path)
@@ -227,7 +236,7 @@ class BrowserSession:
     # Logs
     # ------------------------------------------------------------------ #
 
-    def get_console_logs(self) -> List[Dict[str, Any]]:
+    def get_console_logs(self) -> list[dict[str, Any]]:
         """Return accumulated console log entries (BiDi + CDP fallback)."""
         # BiDi-collected logs take priority (populated by event listeners)
         if self._console_logs:
@@ -248,7 +257,7 @@ class BrowserSession:
         except Exception:
             return []
 
-    def get_network_logs(self) -> List[Dict[str, Any]]:
+    def get_network_logs(self) -> list[dict[str, Any]]:
         """Return accumulated network request/response logs."""
         if self._network_logs:
             return [log.to_dict() for log in self._network_logs]
@@ -263,7 +272,10 @@ class BrowserSession:
                 msg = json.loads(entry.get("message", "{}"))
                 method = msg.get("message", {}).get("method", "")
                 if method in ("Network.requestWillBeSent", "Network.responseReceived"):
-                    results.append({"cdp_method": method, "params": msg.get("message", {}).get("params", {})})
+                    params = msg.get("message", {}).get("params", {})
+                    results.append(
+                        {"cdp_method": method, "params": params}
+                    )
             return results
         except Exception:
             return []
@@ -271,7 +283,7 @@ class BrowserSession:
     def get_performance_metrics(self) -> PerformanceMetrics:
         """Collect performance timing data via JavaScript."""
         try:
-            timing: Dict[str, Any] = self._driver.execute_script(
+            timing: dict[str, Any] = self._driver.execute_script(
                 "return JSON.parse(JSON.stringify(window.performance.timing));"
             )
             nav_start = timing.get("navigationStart", 0)
@@ -283,8 +295,9 @@ class BrowserSession:
                 raw=timing,
             )
             # Try to get paint timings
-            paint_entries: List[Dict] = self._driver.execute_script(
-                "return performance.getEntriesByType('paint').map(e => ({name: e.name, startTime: e.startTime}));"
+            paint_entries: list[dict] = self._driver.execute_script(
+                "return performance.getEntriesByType('paint')"
+                ".map(e => ({name: e.name, startTime: e.startTime}));"
             ) or []
             for entry in paint_entries:
                 if entry.get("name") == "first-paint":
@@ -338,11 +351,11 @@ class BrowserSession:
         except NoSuchElementException as exc:
             raise ElementNotFoundError(selector, self._session_id) from exc
 
-    def _retry(self, action, attempts: Optional[int] = None, backoff: Optional[float] = None):
+    def _retry(self, action, attempts: int | None = None, backoff: float | None = None):
         """Execute *action* with configurable retry on transient WebDriver errors."""
         max_attempts = attempts or self._settings.retry_max_attempts
         sleep = backoff or self._settings.retry_backoff
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for attempt in range(1, max_attempts + 1):
             try:
                 return action()
@@ -353,7 +366,7 @@ class BrowserSession:
                     time.sleep(sleep)
         raise last_exc  # type: ignore[misc]
 
-    def _safe_current_url(self) -> Optional[str]:
+    def _safe_current_url(self) -> str | None:
         try:
             return self._driver.current_url
         except Exception:

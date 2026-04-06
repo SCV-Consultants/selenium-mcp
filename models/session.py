@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
-from typing import Optional
+from datetime import UTC, datetime
+from enum import StrEnum
 
 
-class BrowserType(str, Enum):
+class BrowserType(StrEnum):
     """Supported browser types."""
 
     CHROME = "chrome"
     FIREFOX = "firefox"
 
 
-class SessionStatus(str, Enum):
+class SessionStatus(StrEnum):
     """Possible session lifecycle states."""
 
     INITIALIZING = "initializing"
@@ -33,9 +32,9 @@ class SessionInfo:
     browser: BrowserType
     headless: bool
     status: SessionStatus = SessionStatus.INITIALIZING
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    current_url: Optional[str] = None
-    error_message: Optional[str] = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    current_url: str | None = None
+    error_message: str | None = None
 
     def to_dict(self) -> dict:
         """Serialize to plain dict for MCP responses."""

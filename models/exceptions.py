@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 
 class SeleniumMCPError(Exception):
     """Base exception for all selenium-mcp errors."""
 
-    def __init__(self, message: str, session_id: Optional[str] = None) -> None:
+    def __init__(self, message: str, session_id: str | None = None) -> None:
         super().__init__(message)
         self.session_id = session_id
 
@@ -28,7 +26,7 @@ class SessionLimitError(SeleniumMCPError):
 class ElementNotFoundError(SeleniumMCPError):
     """Raised when a CSS/XPath selector matches no element."""
 
-    def __init__(self, selector: str, session_id: Optional[str] = None) -> None:
+    def __init__(self, selector: str, session_id: str | None = None) -> None:
         super().__init__(f"Element not found: {selector!r}", session_id)
         self.selector = selector
 
@@ -60,7 +58,7 @@ class BiDiNotSupportedError(SeleniumMCPError):
 class TimeoutError(SeleniumMCPError):  # noqa: A001
     """Raised when a wait condition is not met within the given timeout."""
 
-    def __init__(self, condition: str, timeout: float, session_id: Optional[str] = None) -> None:
+    def __init__(self, condition: str, timeout: float, session_id: str | None = None) -> None:
         super().__init__(f"Timed out after {timeout}s waiting for: {condition}", session_id)
         self.condition = condition
         self.timeout = timeout

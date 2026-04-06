@@ -2,20 +2,22 @@
 
 from __future__ import annotations
 
-from models.session import BrowserType, SessionInfo, SessionStatus
 from models.events import (
     ConsoleLogEvent,
     EventType,
     NetworkRequestEvent,
     NetworkResponseEvent,
 )
-from models.network import NetworkLog, InterceptRule, ConsoleLog, PerformanceMetrics
 from models.exceptions import (
+    ElementNotFoundError,
     SeleniumMCPError,
     SessionNotFoundError,
-    ElementNotFoundError,
+)
+from models.exceptions import (
     TimeoutError as MCPTimeoutError,
 )
+from models.network import ConsoleLog, InterceptRule, NetworkLog, PerformanceMetrics
+from models.session import BrowserType, SessionInfo, SessionStatus
 
 
 class TestSessionInfo:

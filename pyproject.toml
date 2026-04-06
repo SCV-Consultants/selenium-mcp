@@ -3,12 +3,27 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "selenium-mcp"
+name = "selenium-mcp-server-bidi"
 version = "1.0.0"
-description = "MCP server integrating Selenium 4 (BiDi) for browser automation"
+description = "Production-ready MCP server integrating Selenium 4 (BiDi) for browser automation"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+authors = [
+    { name = "SCV-Consultants" },
+]
+keywords = ["mcp", "selenium", "browser-automation", "bidi", "webdriver", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+]
 
 dependencies = [
     "selenium>=4.20.0",
@@ -25,18 +40,33 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "types-PyYAML",
+    "build",
+    "twine",
 ]
+
+[project.urls]
+Homepage = "https://gitlab.com/SCV-Consultants/selenium-mcp"
+Repository = "https://gitlab.com/SCV-Consultants/selenium-mcp"
+Issues = "https://gitlab.com/SCV-Consultants/selenium-mcp/-/issues"
 
 [project.scripts]
 selenium-mcp = "server:main"
+
+[tool.setuptools]
+py-modules = ["server", "conftest"]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["config*", "driver*", "events*", "models*", "tools*"]
 
+[tool.setuptools.package-data]
+config = ["*.yaml"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "C4", "PT"]
 
 [tool.mypy]

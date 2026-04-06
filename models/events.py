@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     """Supported BiDi event categories."""
 
     CONSOLE_LOG = "console.log"
@@ -20,14 +20,18 @@ class EventType(str, Enum):
     SCRIPT_ERROR = "script.error"
 
 
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
 @dataclass
 class BrowserEvent:
     """Generic browser event emitted by BiDi listeners."""
 
-    event_type: EventType
     session_id: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    data: Dict[str, Any] = field(default_factory=dict)
+    event_type: EventType = EventType.CONSOLE_LOG
+    timestamp: datetime = field(default_factory=_utcnow)
+    data: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -44,7 +48,7 @@ class ConsoleLogEvent(BrowserEvent):
 
     level: str = "log"
     message: str = ""
-    source: Optional[str] = None
+    source: str | None = None
 
     def __post_init__(self) -> None:
         self.event_type = EventType.CONSOLE_LOG
@@ -62,7 +66,7 @@ class NetworkRequestEvent(BrowserEvent):
     request_id: str = ""
     url: str = ""
     method: str = "GET"
-    headers: Dict[str, str] = field(default_factory=dict)
+    headers: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.event_type = EventType.NETWORK_REQUEST
@@ -81,8 +85,8 @@ class NetworkResponseEvent(BrowserEvent):
     request_id: str = ""
     url: str = ""
     status: int = 0
-    headers: Dict[str, str] = field(default_factory=dict)
-    body: Optional[str] = None
+    headers: dict[str, str] = field(default_factory=dict)
+    body: str | None = None
 
     def __post_init__(self) -> None:
         self.event_type = EventType.NETWORK_RESPONSE

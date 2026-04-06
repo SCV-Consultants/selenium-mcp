@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from tools.base import BaseTool, with_error_screenshot
 
@@ -14,7 +13,7 @@ class NavigationTools(BaseTool):
     """MCP tools for browser navigation actions."""
 
     @with_error_screenshot
-    def open_page(self, url: str, session_id: Optional[str] = None) -> dict:
+    def open_page(self, url: str, session_id: str | None = None) -> dict:
         """
         Navigate to *url* in the active browser session.
 
@@ -34,20 +33,20 @@ class NavigationTools(BaseTool):
         }
 
     @with_error_screenshot
-    def navigate_back(self, session_id: Optional[str] = None) -> dict:
+    def navigate_back(self, session_id: str | None = None) -> dict:
         """Navigate back in browser history."""
         session = self._get_session(session_id)
         session.navigate_back()
         return {"success": True, "session_id": session.session_id}
 
     @with_error_screenshot
-    def navigate_forward(self, session_id: Optional[str] = None) -> dict:
+    def navigate_forward(self, session_id: str | None = None) -> dict:
         """Navigate forward in browser history."""
         session = self._get_session(session_id)
         session.navigate_forward()
         return {"success": True, "session_id": session.session_id}
 
-    def get_dom(self, session_id: Optional[str] = None) -> dict:
+    def get_dom(self, session_id: str | None = None) -> dict:
         """
         Return the full outer HTML of the current page.
 
