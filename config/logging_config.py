@@ -16,7 +16,8 @@ def configure_logging(level: str = "INFO", debug: bool = False) -> None:
         else "%(asctime)s [%(levelname)-8s] %(name)s - %(message)s"
     )
 
-    handler = logging.StreamHandler(sys.stdout)
+    # CRITICAL: MCP uses stdout for JSON-RPC – logs MUST go to stderr
+    handler = logging.StreamHandler(sys.stderr)
     handler.setLevel(log_level)
     handler.setFormatter(logging.Formatter(fmt, datefmt="%Y-%m-%dT%H:%M:%S"))
 

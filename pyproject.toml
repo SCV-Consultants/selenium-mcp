@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp_selenium"
-version = "1.0.1"
+version = "1.0.2"
 description = "Production-ready MCP server integrating Selenium 4 (BiDi) for browser automation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -51,6 +51,7 @@ Issues = "https://github.com/SCV-Consultants/selenium-mcp/issues"
 
 [project.scripts]
 selenium-mcp = "server:main"
+mcp_selenium = "server:main"
 
 [tool.setuptools]
 py-modules = ["server", "conftest"]
