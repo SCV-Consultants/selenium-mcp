@@ -36,7 +36,7 @@ registry = ToolRegistry(session_manager)
 # FastMCP server
 # ──────────────────────────────────────────────────────────────────────────────
 mcp = FastMCP(
-    "selenium-mcp",
+    "mcp-selenium",
     instructions=(
         "Production-ready MCP server integrating Selenium 4 (BiDi) "
         "for browser automation. Supports Chrome and Firefox."

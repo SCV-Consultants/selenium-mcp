@@ -192,10 +192,25 @@ screenshot:
 
 ## Connecting to MCP clients
 
-### Via pip (recommended)
+### Via uvx (recommended — zero install)
+
+```bash
+uvx mcp_selenium
+```
+
+### Via pip
 
 ```bash
 pip install mcp_selenium
+selenium-mcp
+```
+
+### Local development (uv run)
+
+```bash
+git clone https://github.com/SCV-Consultants/selenium-mcp.git
+cd selenium-mcp
+uv run selenium-mcp
 ```
 
 ### Claude Desktop
@@ -206,8 +221,44 @@ Add to `claude_desktop_config.json`:
 {
   "mcpServers": {
     "selenium": {
-      "command": "python",
-      "args": ["-m", "server"],
+      "command": "uvx",
+      "args": ["mcp_selenium"],
+      "env": {
+        "SMCP_HEADLESS": "false",
+        "SMCP_BROWSER": "chrome"
+      }
+    }
+  }
+}
+```
+
+### Antigravity / Gemini
+
+Add to your MCP config (`mcp_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "selenium": {
+      "command": "uvx",
+      "args": ["mcp_selenium"],
+      "env": {
+        "SMCP_HEADLESS": "false",
+        "SMCP_BROWSER": "chrome"
+      }
+    }
+  }
+}
+```
+
+For local development, use `uv run` instead:
+
+```json
+{
+  "mcpServers": {
+    "selenium": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/selenium-mcp", "selenium-mcp"],
       "env": {
         "SMCP_HEADLESS": "false",
         "SMCP_BROWSER": "chrome"
@@ -220,7 +271,7 @@ Add to `claude_desktop_config.json`:
 ### Claude CLI
 
 ```bash
-claude mcp add selenium -- python -m server
+claude mcp add selenium -- uvx mcp_selenium
 ```
 
 ### Install via Smithery
