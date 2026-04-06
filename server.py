@@ -1,340 +1,440 @@
 """
 selenium-mcp – MCP server entrypoint.
 
-Implements the Model Context Protocol (MCP) over stdio (JSON-RPC 2.0),
-exposing Selenium-powered browser automation tools to any MCP-compatible client.
-
-Protocol flow:
-    client → initialize        → server responds with capabilities
-    client → tools/list        → server returns tool descriptors
-    client → tools/call        → server executes tool, returns result
-    client → notifications/... → server acknowledges (no-op for now)
+Uses the official MCP Python SDK (FastMCP) to expose Selenium-powered
+browser automation tools to any MCP-compatible client.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
-import sys
 from typing import Any
+
+from mcp.server.fastmcp import FastMCP
 
 from config.logging_config import configure_logging, get_logger
 from config.settings import settings
 from driver.session_manager import SessionManager
 from events.dispatcher import EventDispatcher
-from models.exceptions import SeleniumMCPError
 from tools.registry import ToolRegistry
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Logging bootstrap (before any other imports that may log)
+# Logging bootstrap
 # ──────────────────────────────────────────────────────────────────────────────
 configure_logging(level=settings.log_level, debug=settings.debug)
 logger = get_logger("server")
 
 # ──────────────────────────────────────────────────────────────────────────────
-# MCP protocol constants
+# Core objects
 # ──────────────────────────────────────────────────────────────────────────────
-PROTOCOL_VERSION = "2024-11-05"
-SERVER_NAME = "selenium-mcp"
-SERVER_VERSION = "1.0.0"
-
+dispatcher = EventDispatcher()
+session_manager = SessionManager(settings, dispatcher)
+registry = ToolRegistry(session_manager)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# JSON-RPC helpers
+# FastMCP server
 # ──────────────────────────────────────────────────────────────────────────────
-
-def _ok(request_id: Any, result: Any) -> dict:
-    return {"jsonrpc": "2.0", "id": request_id, "result": result}
-
-
-def _err(request_id: Any, code: int, message: str, data: Any = None) -> dict:
-    error: dict[str, Any] = {"code": code, "message": message}
-    if data is not None:
-        error["data"] = data
-    return {"jsonrpc": "2.0", "id": request_id, "error": error}
-
-
-def _send(obj: dict) -> None:
-    """Write a JSON-RPC message to stdout followed by a newline."""
-    line = json.dumps(obj, ensure_ascii=False)
-    sys.stdout.write(line + "\n")
-    sys.stdout.flush()
+mcp = FastMCP(
+    "selenium-mcp",
+    instructions=(
+        "Production-ready MCP server integrating Selenium 4 (BiDi) "
+        "for browser automation. Supports Chrome and Firefox."
+    ),
+)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# MCP Server
+# Helper: run synchronous tool call in a thread pool
+# ──────────────────────────────────────────────────────────────────────────────
+async def _run_tool(tool_name: str, arguments: dict[str, Any]) -> dict:
+    """Execute a registered tool in a thread pool to avoid blocking."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None, registry.call, tool_name, arguments
+    )
+
+
+def _format_result(result: Any) -> str:
+    """Format a tool result as a JSON string."""
+    return json.dumps(result, ensure_ascii=False, default=str)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Session management tools
 # ──────────────────────────────────────────────────────────────────────────────
 
-class MCPServer:
-    """
-    Async MCP server that reads JSON-RPC messages from stdin and writes
-    responses to stdout.
+@mcp.tool()
+async def create_session(
+    browser: str | None = None,
+    headless: bool | None = None,
+) -> str:
+    """Create a new browser session. Defaults to Chrome headless."""
+    result = await _run_tool("create_session", {
+        k: v for k, v in {"browser": browser, "headless": headless}.items() if v is not None
+    })
+    return _format_result(result)
 
-    Architecture:
-    - ``EventDispatcher``  – async pub/sub hub for BiDi browser events
-    - ``SessionManager``   – owns all active WebDriver sessions
-    - ``ToolRegistry``     – maps tool names → callable implementations
-    """
 
-    def __init__(self) -> None:
-        self._dispatcher = EventDispatcher()
-        self._session_manager = SessionManager(settings, self._dispatcher)
-        self._registry = ToolRegistry(self._session_manager)
-        self._initialized = False
-        self._running = False
+@mcp.tool()
+async def close_session(session_id: str) -> str:
+    """Close a browser session by ID."""
+    result = await _run_tool("close_session", {"session_id": session_id})
+    return _format_result(result)
 
-    # ------------------------------------------------------------------ #
-    # Lifecycle
-    # ------------------------------------------------------------------ #
 
-    async def run(self) -> None:
-        """Start the server – read stdin line-by-line until EOF."""
-        self._running = True
-        await self._dispatcher.start()
-        logger.info("%s v%s starting (MCP %s)", SERVER_NAME, SERVER_VERSION, PROTOCOL_VERSION)
+@mcp.tool()
+async def list_sessions() -> str:
+    """List all active browser sessions."""
+    result = await _run_tool("list_sessions", {})
+    return _format_result(result)
 
+
+@mcp.tool()
+async def get_session_info(session_id: str | None = None) -> str:
+    """Get metadata for a browser session."""
+    result = await _run_tool("get_session_info", {
+        k: v for k, v in {"session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Navigation tools
+# ──────────────────────────────────────────────────────────────────────────────
+
+@mcp.tool()
+async def open_page(url: str, session_id: str | None = None) -> str:
+    """Navigate the browser to a URL."""
+    result = await _run_tool("open_page", {
+        k: v for k, v in {"url": url, "session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def navigate_back(session_id: str | None = None) -> str:
+    """Go back in browser history."""
+    result = await _run_tool("navigate_back", {
+        k: v for k, v in {"session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def navigate_forward(session_id: str | None = None) -> str:
+    """Go forward in browser history."""
+    result = await _run_tool("navigate_forward", {
+        k: v for k, v in {"session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def get_dom(session_id: str | None = None) -> str:
+    """Return the full page HTML source."""
+    result = await _run_tool("get_dom", {
+        k: v for k, v in {"session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Element interaction tools
+# ──────────────────────────────────────────────────────────────────────────────
+
+@mcp.tool()
+async def click(selector: str, session_id: str | None = None) -> str:
+    """Click a DOM element by CSS selector."""
+    result = await _run_tool("click", {
+        k: v for k, v in {"selector": selector, "session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def type_text(selector: str, text: str, session_id: str | None = None) -> str:
+    """Clear an input and type text into it."""
+    result = await _run_tool("type_text", {
+        k: v for k, v in {"selector": selector, "text": text, "session_id": session_id}.items()
+        if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def get_text(selector: str, session_id: str | None = None) -> str:
+    """Get the visible inner text of an element."""
+    result = await _run_tool("get_text", {
+        k: v for k, v in {"selector": selector, "session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def get_attribute(selector: str, attribute: str, session_id: str | None = None) -> str:
+    """Get an attribute value from a DOM element (e.g. href, value, class)."""
+    result = await _run_tool("get_attribute", {
+        k: v for k, v in {
+            "selector": selector, "attribute": attribute, "session_id": session_id,
+        }.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def press_key(key: str, selector: str | None = None, session_id: str | None = None) -> str:
+    """Press a keyboard key (e.g. Enter, Tab, Escape). Optionally target a specific element."""
+    result = await _run_tool("press_key", {
+        k: v for k, v in {
+            "key": key, "selector": selector, "session_id": session_id,
+        }.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def wait_for(
+    selector: str, timeout: float = 10.0, session_id: str | None = None,
+) -> str:
+    """Wait until a CSS selector is visible on the page."""
+    result = await _run_tool("wait_for", {
+        k: v for k, v in {
+            "selector": selector, "timeout": timeout, "session_id": session_id,
+        }.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def wait_for_dom_stable(
+    timeout: float = 5.0, session_id: str | None = None,
+) -> str:
+    """Wait until the DOM stops mutating (smart wait for AJAX content)."""
+    result = await _run_tool("wait_for_dom_stable", {
+        k: v for k, v in {"timeout": timeout, "session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Script & media tools
+# ──────────────────────────────────────────────────────────────────────────────
+
+@mcp.tool()
+async def execute_js(script: str, session_id: str | None = None) -> str:
+    """Execute JavaScript in the browser and return the result."""
+    result = await _run_tool("execute_js", {
+        k: v for k, v in {"script": script, "session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def screenshot(session_id: str | None = None) -> str:
+    """Capture a base64-encoded PNG screenshot of the current viewport."""
+    result = await _run_tool("screenshot", {
+        k: v for k, v in {"session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Logs & network tools
+# ──────────────────────────────────────────────────────────────────────────────
+
+@mcp.tool()
+async def get_console_logs(session_id: str | None = None) -> str:
+    """Return all captured browser console log entries."""
+    result = await _run_tool("get_console_logs", {
+        k: v for k, v in {"session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def get_network_logs(session_id: str | None = None) -> str:
+    """Return all captured network request/response entries."""
+    result = await _run_tool("get_network_logs", {
+        k: v for k, v in {"session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def get_performance_metrics(session_id: str | None = None) -> str:
+    """Return page performance timing data."""
+    result = await _run_tool("get_performance_metrics", {
+        k: v for k, v in {"session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def intercept_requests(
+    pattern: str, action: str = "log", session_id: str | None = None,
+) -> str:
+    """Register a URL pattern for network interception (log or block)."""
+    result = await _run_tool("intercept_requests", {
+        k: v for k, v in {
+            "pattern": pattern, "action": action, "session_id": session_id,
+        }.items() if v is not None
+    })
+    return _format_result(result)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Window / tab management
+# ──────────────────────────────────────────────────────────────────────────────
+
+@mcp.tool()
+async def window(
+    action: str,
+    handle: str | None = None,
+    index: int | None = None,
+    session_id: str | None = None,
+) -> str:
+    """Manage browser windows and tabs. Actions: list, switch, switch_latest, close."""
+    result = await _run_tool("window", {
+        k: v for k, v in {
+            "action": action, "handle": handle, "index": index, "session_id": session_id,
+        }.items() if v is not None
+    })
+    return _format_result(result)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Frame / iFrame management
+# ──────────────────────────────────────────────────────────────────────────────
+
+@mcp.tool()
+async def frame(
+    action: str,
+    identifier: str | int | None = None,
+    session_id: str | None = None,
+) -> str:
+    """Switch focus to a frame or back to the main page. Actions: switch, default."""
+    result = await _run_tool("frame", {
+        k: v for k, v in {
+            "action": action, "identifier": identifier, "session_id": session_id,
+        }.items() if v is not None
+    })
+    return _format_result(result)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Alert / dialog handling
+# ──────────────────────────────────────────────────────────────────────────────
+
+@mcp.tool()
+async def alert(
+    action: str,
+    text: str | None = None,
+    session_id: str | None = None,
+) -> str:
+    """Handle browser alert/confirm/prompt dialogs. Actions: accept, dismiss, get_text, send_text."""  # noqa: E501
+    result = await _run_tool("alert", {
+        k: v for k, v in {
+            "action": action, "text": text, "session_id": session_id,
+        }.items() if v is not None
+    })
+    return _format_result(result)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Cookie management
+# ──────────────────────────────────────────────────────────────────────────────
+
+@mcp.tool()
+async def add_cookie(
+    name: str,
+    value: str,
+    domain: str | None = None,
+    path: str | None = None,
+    secure: bool | None = None,
+    http_only: bool | None = None,
+    session_id: str | None = None,
+) -> str:
+    """Add a cookie. Browser must be on a page from the cookie's domain."""
+    result = await _run_tool("add_cookie", {
+        k: v for k, v in {
+            "name": name, "value": value, "domain": domain, "path": path,
+            "secure": secure, "http_only": http_only, "session_id": session_id,
+        }.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def get_cookies(name: str | None = None, session_id: str | None = None) -> str:
+    """Get cookies. Returns all or a specific one by name."""
+    result = await _run_tool("get_cookies", {
+        k: v for k, v in {"name": name, "session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+@mcp.tool()
+async def delete_cookie(name: str | None = None, session_id: str | None = None) -> str:
+    """Delete cookies. Deletes all or a specific one by name."""
+    result = await _run_tool("delete_cookie", {
+        k: v for k, v in {"name": name, "session_id": session_id}.items() if v is not None
+    })
+    return _format_result(result)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# MCP Resources
+# ──────────────────────────────────────────────────────────────────────────────
+
+@mcp.resource(
+    "accessibility://current",
+    name="Current Page Accessibility Tree",
+    description=(
+        "A compact, structured JSON representation of interactive elements "
+        "and text content on the current page. Much smaller than full HTML. "
+        "Useful for understanding page layout and finding elements."
+    ),
+    mime_type="application/json",
+)
+async def accessibility_resource() -> str:
+    """Return the accessibility tree of the current page."""
+    try:
         loop = asyncio.get_running_loop()
-        reader = asyncio.StreamReader()
-        protocol = asyncio.StreamReaderProtocol(reader)
-        await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+        session = await loop.run_in_executor(None, session_manager.get_or_default)
+        tree = await loop.run_in_executor(None, session.get_accessibility_tree)
+        return json.dumps(tree, ensure_ascii=False, default=str)
+    except Exception as exc:
+        return json.dumps({"error": f"No active session: {exc}"})
 
-        try:
-            while self._running:
-                try:
-                    line = await reader.readline()
-                    if not line:
-                        logger.info("stdin closed – shutting down.")
-                        break
-                    await self._handle_raw(line.decode("utf-8").strip())
-                except asyncio.CancelledError:
-                    break
-                except Exception as exc:
-                    logger.exception("Unhandled error in read loop: %s", exc)
-        finally:
-            await self._shutdown()
 
-    async def _shutdown(self) -> None:
-        self._running = False
-        await self._dispatcher.stop()
-        self._session_manager.close_all()
-        logger.info("Server shut down cleanly.")
-
-    # ------------------------------------------------------------------ #
-    # Message routing
-    # ------------------------------------------------------------------ #
-
-    async def _handle_raw(self, raw: str) -> None:
-        """Parse raw JSON-RPC text and dispatch to the correct handler."""
-        if not raw:
-            return
-        try:
-            msg = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            _send(_err(None, -32700, f"Parse error: {exc}"))
-            return
-
-        request_id = msg.get("id")
-        method = msg.get("method", "")
-        params = msg.get("params", {})
-
-        logger.debug("→ %s (id=%s)", method, request_id)
-
-        # Notifications (no id) – acknowledge silently
-        if request_id is None and method.startswith("notifications/"):
-            return
-
-        try:
-            result = await self._dispatch(method, params)
-            _send(_ok(request_id, result))
-            logger.debug("← %s OK", method)
-        except SeleniumMCPError as exc:
-            logger.warning("Tool error [%s]: %s", method, exc)
-            _send(_err(request_id, -32000, str(exc), {"session_id": exc.session_id}))
-        except KeyError as exc:
-            _send(_err(request_id, -32601, f"Method not found: {exc}"))
-        except TypeError as exc:
-            _send(_err(request_id, -32602, f"Invalid params: {exc}"))
-        except Exception as exc:
-            logger.exception("Internal error [%s]", method)
-            _send(_err(request_id, -32603, f"Internal error: {exc}"))
-
-    async def _dispatch(self, method: str, params: dict) -> Any:
-        """Route a JSON-RPC method to the appropriate MCP handler."""
-        if method == "initialize":
-            return self._handle_initialize(params)
-        if method == "initialized":
-            return {}
-        if method == "ping":
-            return {}
-        if method == "tools/list":
-            return self._handle_tools_list()
-        if method == "tools/call":
-            return await self._handle_tools_call(params)
-        if method == "resources/list":
-            return self._handle_resources_list()
-        if method == "resources/read":
-            return self._handle_resources_read(params)
-        if method == "prompts/list":
-            return {"prompts": []}
-        raise KeyError(method)
-
-    # ------------------------------------------------------------------ #
-    # MCP method handlers
-    # ------------------------------------------------------------------ #
-
-    def _handle_initialize(self, params: dict) -> dict:
-        """Respond to the MCP initialize handshake."""
-        client_info = params.get("clientInfo", {})
-        logger.info(
-            "Client connected: %s %s",
-            client_info.get("name", "unknown"),
-            client_info.get("version", ""),
-        )
-        self._initialized = True
-        return {
-            "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {
-                "tools": {"listChanged": False},
-                "resources": {},
-                "prompts": {},
-                "logging": {},
-            },
-            "serverInfo": {
-                "name": SERVER_NAME,
-                "version": SERVER_VERSION,
-            },
-        }
-
-    def _handle_tools_list(self) -> dict:
-        """Return the list of available MCP tools."""
-        return {"tools": self._registry.list_tools()}
-
-    async def _handle_tools_call(self, params: dict) -> dict:
-        """Execute a tool and wrap the result in MCP content format."""
-        tool_name: str = params.get("name", "")
-        arguments: dict = params.get("arguments", {})
-
-        if not tool_name:
-            raise TypeError("Missing 'name' in tools/call params")
-
-        if tool_name not in {t["name"] for t in self._registry.list_tools()}:
-            raise KeyError(repr(tool_name))
-
-        logger.info("Calling tool: %s %s", tool_name, list(arguments.keys()))
-
-        # Run synchronous tool calls in a thread pool to avoid blocking the event loop
+@mcp.resource(
+    "browser-status://current",
+    name="Browser Session Status",
+    description=(
+        "Returns the current browser session status including "
+        "URL, title, window count, and active session info."
+    ),
+    mime_type="text/plain",
+)
+async def browser_status_resource() -> str:
+    """Return the current browser session status."""
+    try:
         loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None, self._registry.call, tool_name, arguments
+        session = await loop.run_in_executor(None, session_manager.get_or_default)
+        info = session.info
+        return (
+            f"Session ID: {info.session_id}\n"
+            f"Browser: {info.browser.value}\n"
+            f"Status: {info.status.value}\n"
+            f"URL: {info.current_url or 'N/A'}\n"
+            f"Headless: {info.headless}"
         )
+    except Exception:
+        return "No active browser session"
 
-        # Format as MCP content array
-        content = [
-            {
-                "type": "text",
-                "text": json.dumps(result, ensure_ascii=False, default=str),
-            }
-        ]
 
-        # If the result contains base64 image data, also add an image content block
-        if isinstance(result, dict) and "image_base64" in result:
-            content.append(
-                {
-                    "type": "image",
-                    "data": result["image_base64"],
-                    "mimeType": result.get("mime_type", "image/png"),
-                }
-            )
 
-        return {"content": content, "isError": False}
-
-    def _handle_resources_list(self) -> dict:
-        """Return the list of available MCP resources."""
-        return {
-            "resources": [
-                {
-                    "uri": "accessibility://current",
-                    "name": "Current Page Accessibility Tree",
-                    "description": (
-                        "A compact, structured JSON representation of interactive "
-                        "elements and text content on the current page. Much smaller "
-                        "than full HTML. Useful for understanding page layout and "
-                        "finding elements to interact with."
-                    ),
-                    "mimeType": "application/json",
-                },
-                {
-                    "uri": "browser-status://current",
-                    "name": "Browser Session Status",
-                    "description": (
-                        "Returns the current browser session status including "
-                        "URL, title, window count, and active session info."
-                    ),
-                    "mimeType": "text/plain",
-                },
-            ]
-        }
-
-    def _handle_resources_read(self, params: dict) -> dict:
-        """Read a specific MCP resource by URI."""
-        uri = params.get("uri", "")
-
-        if uri == "accessibility://current":
-            return self._read_accessibility_resource()
-        if uri == "browser-status://current":
-            return self._read_browser_status_resource()
-
-        raise KeyError(f"Unknown resource URI: {uri!r}")
-
-    def _read_accessibility_resource(self) -> dict:
-        """Return the accessibility tree of the current page."""
-        try:
-            session = self._session_manager.get_or_default()
-            tree = session.get_accessibility_tree()
-            return {
-                "contents": [
-                    {
-                        "uri": "accessibility://current",
-                        "mimeType": "application/json",
-                        "text": json.dumps(tree, ensure_ascii=False, default=str),
-                    }
-                ]
-            }
-        except Exception as exc:
-            return {
-                "contents": [
-                    {
-                        "uri": "accessibility://current",
-                        "mimeType": "text/plain",
-                        "text": f"No active session: {exc}",
-                    }
-                ]
-            }
-
-    def _read_browser_status_resource(self) -> dict:
-        """Return the current browser session status."""
-        try:
-            session = self._session_manager.get_or_default()
-            info = session.info
-            status_text = (
-                f"Session ID: {info.session_id}\n"
-                f"Browser: {info.browser.value}\n"
-                f"Status: {info.status.value}\n"
-                f"URL: {info.current_url or 'N/A'}\n"
-                f"Headless: {info.headless}"
-            )
-        except Exception:
-            status_text = "No active browser session"
-
-        return {
-            "contents": [
-                {
-                    "uri": "browser-status://current",
-                    "mimeType": "text/plain",
-                    "text": status_text,
-                }
-            ]
-        }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -343,15 +443,8 @@ class MCPServer:
 
 def main() -> None:
     """Start the MCP server."""
-    # Reconfigure stdout to be unbuffered / line-buffered for JSON-RPC framing
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(line_buffering=True)
-
-    server = MCPServer()
-    try:
-        asyncio.run(server.run())
-    except KeyboardInterrupt:
-        logger.info("Interrupted by user.")
+    logger.info("selenium-mcp v1.0.0 starting via FastMCP (official SDK)")
+    mcp.run()
 
 
 if __name__ == "__main__":

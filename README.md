@@ -190,7 +190,15 @@ screenshot:
 
 ---
 
-## Connecting to Claude Desktop
+## Connecting to MCP clients
+
+### Via pip (recommended)
+
+```bash
+pip install mcp_selenium
+```
+
+### Claude Desktop
 
 Add to `claude_desktop_config.json`:
 
@@ -199,7 +207,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "selenium": {
       "command": "python",
-      "args": ["/absolute/path/to/selenium-mcp/server.py"],
+      "args": ["-m", "server"],
       "env": {
         "SMCP_HEADLESS": "false",
         "SMCP_BROWSER": "chrome"
@@ -207,6 +215,18 @@ Add to `claude_desktop_config.json`:
     }
   }
 }
+```
+
+### Claude CLI
+
+```bash
+claude mcp add selenium -- python -m server
+```
+
+### Install via Smithery
+
+```bash
+npx -y @smithery/cli install mcp_selenium --client claude
 ```
 
 ---

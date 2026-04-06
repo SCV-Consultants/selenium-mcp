@@ -40,9 +40,16 @@ class EventDispatcher:
 
     def __init__(self, queue_maxsize: int = 1000) -> None:
         self._handlers: dict[EventType, list[AsyncHandler]] = defaultdict(list)
-        self._queue: asyncio.Queue[BrowserEvent] = asyncio.Queue(maxsize=queue_maxsize)
+        self._queue_maxsize = queue_maxsize
+        self._queue: asyncio.Queue[BrowserEvent] | None = None
         self._running = False
         self._task: asyncio.Task | None = None
+
+    def _get_queue(self) -> asyncio.Queue[BrowserEvent]:
+        """Lazily create the asyncio.Queue (requires a running event loop)."""
+        if self._queue is None:
+            self._queue = asyncio.Queue(maxsize=self._queue_maxsize)
+        return self._queue
 
     # ------------------------------------------------------------------ #
     # Subscription API
@@ -67,7 +74,7 @@ class EventDispatcher:
     async def publish(self, event: BrowserEvent) -> None:
         """Enqueue *event* for async delivery to all subscribers."""
         try:
-            self._queue.put_nowait(event)
+            self._get_queue().put_nowait(event)
         except asyncio.QueueFull:
             logger.warning("Event queue full – dropping %s event", event.event_type.value)
 
@@ -83,11 +90,11 @@ class EventDispatcher:
         """
         try:
             target_loop = loop or asyncio.get_event_loop()
-            target_loop.call_soon_threadsafe(self._queue.put_nowait, event)
+            target_loop.call_soon_threadsafe(self._get_queue().put_nowait, event)
         except RuntimeError:
             # No running loop – best effort synchronous dispatch
             try:
-                self._queue.put_nowait(event)
+                self._get_queue().put_nowait(event)
             except asyncio.QueueFull:
                 logger.warning(
                     "Event queue full – dropping %s event (sync)",
@@ -121,7 +128,7 @@ class EventDispatcher:
         """Pull events from the queue and fan out to registered handlers."""
         while self._running:
             try:
-                event = await asyncio.wait_for(self._queue.get(), timeout=0.5)
+                event = await asyncio.wait_for(self._get_queue().get(), timeout=0.5)
             except TimeoutError:
                 continue
 
@@ -136,4 +143,4 @@ class EventDispatcher:
                         event.event_type.value,
                         exc,
                     )
-            self._queue.task_done()
+            self._get_queue().task_done()

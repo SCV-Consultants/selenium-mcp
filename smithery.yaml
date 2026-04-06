@@ -1,0 +1,29 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required: []
+    properties:
+      browser:
+        type: string
+        title: Default Browser
+        description: "Default browser to use (chrome or firefox)"
+        default: "chrome"
+        enum: ["chrome", "firefox"]
+      headless:
+        type: boolean
+        title: Headless Mode
+        description: "Run browser in headless mode"
+        default: true
+  commandFunction:
+    |-
+    (config) => ({
+      command: 'python',
+      args: ['-m', 'server'],
+      env: {
+        SMCP_BROWSER: config.browser || 'chrome',
+        SMCP_HEADLESS: String(config.headless !== false)
+      }
+    })
