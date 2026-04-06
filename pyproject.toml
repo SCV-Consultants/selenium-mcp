@@ -50,7 +50,7 @@ Repository = "https://github.com/SCV-Consultants/selenium-mcp"
 Issues = "https://github.com/SCV-Consultants/selenium-mcp/issues"
 
 [project.scripts]
-selenium-mcp = "server:main"
+mcp-selenium = "server:main"
 mcp_selenium = "server:main"
 
 [tool.setuptools]

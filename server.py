@@ -1,5 +1,5 @@
 """
-selenium-mcp – MCP server entrypoint.
+mcp-selenium – MCP server entrypoint.
 
 Uses the official MCP Python SDK (FastMCP) to expose Selenium-powered
 browser automation tools to any MCP-compatible client.
@@ -443,7 +443,7 @@ async def browser_status_resource() -> str:
 
 def main() -> None:
     """Start the MCP server."""
-    logger.info("selenium-mcp v1.0.2 starting via FastMCP (official SDK)")
+    logger.info("mcp-selenium v1.0.2 starting via FastMCP (official SDK)")
     mcp.run()
 
 

@@ -1,4 +1,4 @@
-"""Logging configuration for the selenium-mcp server."""
+"""Logging configuration for the mcp-selenium server."""
 
 from __future__ import annotations
 
@@ -33,5 +33,5 @@ def configure_logging(level: str = "INFO", debug: bool = False) -> None:
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Return a named logger scoped to the selenium-mcp namespace."""
-    return logging.getLogger(f"selenium_mcp.{name}")
+    """Return a named logger scoped to the mcp-selenium namespace."""
+    return logging.getLogger(f"mcp_selenium.{name}")
