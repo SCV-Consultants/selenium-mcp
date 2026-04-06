@@ -9,7 +9,10 @@ from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
 from selenium.common.exceptions import (
+    NoAlertPresentException,
     NoSuchElementException,
+    NoSuchFrameException,
+    NoSuchWindowException,
     StaleElementReferenceException,
     WebDriverException,
 )
@@ -17,17 +20,22 @@ from selenium.common.exceptions import (
     TimeoutException as SeleniumTimeoutException,
 )
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from config.settings import Settings
 from models.exceptions import (
+    AlertError,
+    CookieError,
     ElementInteractionError,
     ElementNotFoundError,
+    FrameError,
     NavigationError,
     ScreenshotError,
     ScriptExecutionError,
+    WindowError,
 )
 from models.exceptions import (
     TimeoutError as MCPTimeoutError,
@@ -154,6 +162,61 @@ class BrowserSession:
         except WebDriverException as exc:
             raise ElementInteractionError(
                 f"Cannot get text of {selector!r}: {exc}", self._session_id
+            ) from exc
+
+    def get_attribute(self, selector: str, attribute: str) -> str | None:
+        """Return the value of *attribute* on the element matching *selector*."""
+        element = self._find(selector)
+        try:
+            return element.get_attribute(attribute)
+        except WebDriverException as exc:
+            raise ElementInteractionError(
+                f"Cannot get attribute {attribute!r} of {selector!r}: {exc}",
+                self._session_id,
+            ) from exc
+
+    def press_key(self, key: str, selector: str | None = None) -> None:
+        """
+        Press a keyboard key.
+
+        If *selector* is given, sends the key to that element;
+        otherwise sends it to the active element.
+        """
+        # Map common key names to Selenium Keys constants
+        key_map = {
+            "enter": Keys.ENTER,
+            "return": Keys.RETURN,
+            "tab": Keys.TAB,
+            "escape": Keys.ESCAPE,
+            "esc": Keys.ESCAPE,
+            "backspace": Keys.BACKSPACE,
+            "delete": Keys.DELETE,
+            "space": Keys.SPACE,
+            "arrowup": Keys.ARROW_UP,
+            "arrowdown": Keys.ARROW_DOWN,
+            "arrowleft": Keys.ARROW_LEFT,
+            "arrowright": Keys.ARROW_RIGHT,
+            "home": Keys.HOME,
+            "end": Keys.END,
+            "pageup": Keys.PAGE_UP,
+            "pagedown": Keys.PAGE_DOWN,
+            "f1": Keys.F1, "f2": Keys.F2, "f3": Keys.F3, "f4": Keys.F4,
+            "f5": Keys.F5, "f6": Keys.F6, "f7": Keys.F7, "f8": Keys.F8,
+            "f9": Keys.F9, "f10": Keys.F10, "f11": Keys.F11, "f12": Keys.F12,
+            "control": Keys.CONTROL, "ctrl": Keys.CONTROL,
+            "shift": Keys.SHIFT, "alt": Keys.ALT, "meta": Keys.META,
+        }
+        resolved = key_map.get(key.lower(), key)
+        try:
+            if selector:
+                element = self._find(selector)
+                element.send_keys(resolved)
+            else:
+                from selenium.webdriver.common.action_chains import ActionChains
+                ActionChains(self._driver).send_keys(resolved).perform()
+        except WebDriverException as exc:
+            raise ElementInteractionError(
+                f"Cannot press key {key!r}: {exc}", self._session_id
             ) from exc
 
     def wait_for(self, selector: str, timeout: float) -> None:
@@ -326,6 +389,237 @@ class BrowserSession:
     def add_console_log(self, log: ConsoleLog) -> None:
         """Append an externally captured console log entry (called by BiDi layer)."""
         self._console_logs.append(log)
+
+    # ------------------------------------------------------------------ #
+    # Window / Tab management
+    # ------------------------------------------------------------------ #
+
+    def list_windows(self) -> list[dict[str, str]]:
+        """Return all window handles with the current handle marked."""
+        try:
+            handles = self._driver.window_handles
+            current = self._driver.current_window_handle
+            return [
+                {"handle": h, "active": h == current}
+                for h in handles
+            ]
+        except WebDriverException as exc:
+            raise WindowError(f"Cannot list windows: {exc}", self._session_id) from exc
+
+    def switch_window(self, handle: str | None = None, index: int | None = None) -> str:
+        """
+        Switch to a window by handle or index.
+
+        Returns the new window handle.
+        """
+        try:
+            if handle:
+                self._driver.switch_to.window(handle)
+            elif index is not None:
+                handles = self._driver.window_handles
+                if index < 0 or index >= len(handles):
+                    raise WindowError(
+                        f"Window index {index} out of range (0-{len(handles)-1})",
+                        self._session_id,
+                    )
+                self._driver.switch_to.window(handles[index])
+            else:
+                # Switch to the latest (last) window
+                handles = self._driver.window_handles
+                self._driver.switch_to.window(handles[-1])
+            return self._driver.current_window_handle
+        except NoSuchWindowException as exc:
+            raise WindowError(f"Window not found: {exc}", self._session_id) from exc
+        except WebDriverException as exc:
+            raise WindowError(f"Cannot switch window: {exc}", self._session_id) from exc
+
+    def close_window(self) -> str | None:
+        """Close current window/tab and switch to previous. Returns new handle or None."""
+        try:
+            self._driver.close()
+            handles = self._driver.window_handles
+            if handles:
+                self._driver.switch_to.window(handles[-1])
+                return self._driver.current_window_handle
+            return None
+        except WebDriverException as exc:
+            raise WindowError(f"Cannot close window: {exc}", self._session_id) from exc
+
+    # ------------------------------------------------------------------ #
+    # Frame / iFrame management
+    # ------------------------------------------------------------------ #
+
+    def switch_frame(self, identifier: str | int) -> None:
+        """
+        Switch to a frame by name, ID (string) or index (int).
+        """
+        try:
+            self._driver.switch_to.frame(identifier)
+        except NoSuchFrameException as exc:
+            raise FrameError(
+                f"Frame not found: {identifier!r}", self._session_id
+            ) from exc
+        except WebDriverException as exc:
+            raise FrameError(f"Cannot switch frame: {exc}", self._session_id) from exc
+
+    def switch_to_default_content(self) -> None:
+        """Switch back to the main/top-level page from any frame."""
+        try:
+            self._driver.switch_to.default_content()
+        except WebDriverException as exc:
+            raise FrameError(
+                f"Cannot switch to default content: {exc}", self._session_id
+            ) from exc
+
+    # ------------------------------------------------------------------ #
+    # Alert / Dialog handling
+    # ------------------------------------------------------------------ #
+
+    def alert_accept(self) -> str:
+        """Accept (OK) the active alert. Returns the alert text."""
+        try:
+            alert = self._driver.switch_to.alert
+            text = alert.text
+            alert.accept()
+            return text
+        except NoAlertPresentException as exc:
+            raise AlertError("No alert present", self._session_id) from exc
+        except WebDriverException as exc:
+            raise AlertError(f"Cannot accept alert: {exc}", self._session_id) from exc
+
+    def alert_dismiss(self) -> str:
+        """Dismiss (Cancel) the active alert. Returns the alert text."""
+        try:
+            alert = self._driver.switch_to.alert
+            text = alert.text
+            alert.dismiss()
+            return text
+        except NoAlertPresentException as exc:
+            raise AlertError("No alert present", self._session_id) from exc
+        except WebDriverException as exc:
+            raise AlertError(f"Cannot dismiss alert: {exc}", self._session_id) from exc
+
+    def alert_get_text(self) -> str:
+        """Get the text of the active alert without dismissing it."""
+        try:
+            return self._driver.switch_to.alert.text
+        except NoAlertPresentException as exc:
+            raise AlertError("No alert present", self._session_id) from exc
+
+    def alert_send_text(self, text: str) -> None:
+        """Type text into a prompt dialog."""
+        try:
+            alert = self._driver.switch_to.alert
+            alert.send_keys(text)
+        except NoAlertPresentException as exc:
+            raise AlertError("No alert present", self._session_id) from exc
+        except WebDriverException as exc:
+            raise AlertError(f"Cannot send text to alert: {exc}", self._session_id) from exc
+
+    # ------------------------------------------------------------------ #
+    # Cookie management
+    # ------------------------------------------------------------------ #
+
+    def add_cookie(self, name: str, value: str, **kwargs) -> None:
+        """Add a cookie. Browser must be on a page from the cookie's domain."""
+        cookie: dict[str, Any] = {"name": name, "value": value}
+        cookie.update(kwargs)
+        try:
+            self._driver.add_cookie(cookie)
+        except WebDriverException as exc:
+            raise CookieError(
+                f"Cannot add cookie {name!r}: {exc}", self._session_id
+            ) from exc
+
+    def get_cookies(self, name: str | None = None) -> list[dict[str, Any]]:
+        """Get all cookies, or a specific one by *name*."""
+        try:
+            if name:
+                cookie = self._driver.get_cookie(name)
+                return [cookie] if cookie else []
+            return self._driver.get_cookies()
+        except WebDriverException as exc:
+            raise CookieError(f"Cannot get cookies: {exc}", self._session_id) from exc
+
+    def delete_cookies(self, name: str | None = None) -> None:
+        """Delete a specific cookie by *name*, or all cookies."""
+        try:
+            if name:
+                self._driver.delete_cookie(name)
+            else:
+                self._driver.delete_all_cookies()
+        except WebDriverException as exc:
+            raise CookieError(
+                f"Cannot delete cookie(s): {exc}", self._session_id
+            ) from exc
+
+    # ------------------------------------------------------------------ #
+    # Accessibility
+    # ------------------------------------------------------------------ #
+
+    def get_accessibility_tree(self) -> dict[str, Any]:
+        """
+        Return a compact accessibility tree of the current page.
+
+        Uses JavaScript to walk the DOM and extract interactive elements,
+        landmarks, headings, and text content — much smaller than full HTML
+        and far more useful for LLMs.
+        """
+        script = """
+        function buildTree(node, depth) {
+            if (depth > 15) return null;
+            var result = {};
+            var tag = node.tagName ? node.tagName.toLowerCase() : '';
+            var role = node.getAttribute ? (node.getAttribute('role') || '') : '';
+            var ariaLabel = node.getAttribute ? (node.getAttribute('aria-label') || '') : '';
+            var interactiveTags = ['a','button','input','select','textarea','details','summary'];
+            var isInteractive = interactiveTags.indexOf(tag) !== -1 || role;
+            var id = node.id || '';
+            var text = '';
+
+            if (node.nodeType === 3) {
+                text = node.textContent.trim();
+                if (!text) return null;
+                return {type: 'text', content: text.substring(0, 200)};
+            }
+            if (node.nodeType !== 1) return null;
+
+            result.tag = tag;
+            if (id) result.id = id;
+            if (role) result.role = role;
+            if (ariaLabel) result.ariaLabel = ariaLabel;
+            if (tag === 'a') result.href = node.getAttribute('href') || '';
+            if (tag === 'input') {
+                result.type = node.getAttribute('type') || 'text';
+                result.name = node.getAttribute('name') || '';
+                result.value = node.value || '';
+            }
+            if (tag === 'img') result.alt = node.getAttribute('alt') || '';
+
+            var children = [];
+            for (var i = 0; i < node.childNodes.length; i++) {
+                var child = buildTree(node.childNodes[i], depth + 1);
+                if (child) children.push(child);
+            }
+
+            if (!isInteractive && !id && children.length === 0) return null;
+            if (!isInteractive && !id && children.length === 1 && children[0].type === 'text') {
+                return children[0];
+            }
+
+            if (children.length > 0) result.children = children;
+            return result;
+        }
+        return {
+            url: document.location.href,
+            title: document.title,
+            tree: buildTree(document.body, 0)
+        };
+        """
+        try:
+            return self._driver.execute_script(script)
+        except WebDriverException:
+            return {"url": self._safe_current_url(), "title": "", "tree": None}
 
     # ------------------------------------------------------------------ #
     # Lifecycle

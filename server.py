@@ -171,7 +171,9 @@ class MCPServer:
         if method == "tools/call":
             return await self._handle_tools_call(params)
         if method == "resources/list":
-            return {"resources": []}
+            return self._handle_resources_list()
+        if method == "resources/read":
+            return self._handle_resources_read(params)
         if method == "prompts/list":
             return {"prompts": []}
         raise KeyError(method)
@@ -245,6 +247,94 @@ class MCPServer:
             )
 
         return {"content": content, "isError": False}
+
+    def _handle_resources_list(self) -> dict:
+        """Return the list of available MCP resources."""
+        return {
+            "resources": [
+                {
+                    "uri": "accessibility://current",
+                    "name": "Current Page Accessibility Tree",
+                    "description": (
+                        "A compact, structured JSON representation of interactive "
+                        "elements and text content on the current page. Much smaller "
+                        "than full HTML. Useful for understanding page layout and "
+                        "finding elements to interact with."
+                    ),
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": "browser-status://current",
+                    "name": "Browser Session Status",
+                    "description": (
+                        "Returns the current browser session status including "
+                        "URL, title, window count, and active session info."
+                    ),
+                    "mimeType": "text/plain",
+                },
+            ]
+        }
+
+    def _handle_resources_read(self, params: dict) -> dict:
+        """Read a specific MCP resource by URI."""
+        uri = params.get("uri", "")
+
+        if uri == "accessibility://current":
+            return self._read_accessibility_resource()
+        if uri == "browser-status://current":
+            return self._read_browser_status_resource()
+
+        raise KeyError(f"Unknown resource URI: {uri!r}")
+
+    def _read_accessibility_resource(self) -> dict:
+        """Return the accessibility tree of the current page."""
+        try:
+            session = self._session_manager.get_or_default()
+            tree = session.get_accessibility_tree()
+            return {
+                "contents": [
+                    {
+                        "uri": "accessibility://current",
+                        "mimeType": "application/json",
+                        "text": json.dumps(tree, ensure_ascii=False, default=str),
+                    }
+                ]
+            }
+        except Exception as exc:
+            return {
+                "contents": [
+                    {
+                        "uri": "accessibility://current",
+                        "mimeType": "text/plain",
+                        "text": f"No active session: {exc}",
+                    }
+                ]
+            }
+
+    def _read_browser_status_resource(self) -> dict:
+        """Return the current browser session status."""
+        try:
+            session = self._session_manager.get_or_default()
+            info = session.info
+            status_text = (
+                f"Session ID: {info.session_id}\n"
+                f"Browser: {info.browser.value}\n"
+                f"Status: {info.status.value}\n"
+                f"URL: {info.current_url or 'N/A'}\n"
+                f"Headless: {info.headless}"
+            )
+        except Exception:
+            status_text = "No active browser session"
+
+        return {
+            "contents": [
+                {
+                    "uri": "browser-status://current",
+                    "mimeType": "text/plain",
+                    "text": status_text,
+                }
+            ]
+        }
 
 
 # ──────────────────────────────────────────────────────────────────────────────

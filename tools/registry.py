@@ -6,11 +6,15 @@ from collections.abc import Callable
 from typing import Any
 
 from driver.session_manager import SessionManager
+from tools.alert_tools import AlertTools
+from tools.cookie_tools import CookieTools
+from tools.frame_tools import FrameTools
 from tools.interaction_tools import InteractionTools
 from tools.log_tools import LogTools
 from tools.navigation_tools import NavigationTools
 from tools.script_tools import ScriptTools
 from tools.session_tools import SessionTools
+from tools.window_tools import WindowTools
 
 
 class ToolRegistry:
@@ -29,6 +33,10 @@ class ToolRegistry:
         self._script = ScriptTools(session_manager)
         self._logs = LogTools(session_manager)
         self._session = SessionTools(session_manager)
+        self._window = WindowTools(session_manager)
+        self._frame = FrameTools(session_manager)
+        self._alert = AlertTools(session_manager)
+        self._cookie = CookieTools(session_manager)
 
         self._tools: dict[str, Callable[..., Any]] = {
             # Navigation
@@ -40,6 +48,8 @@ class ToolRegistry:
             "click": self._interaction.click,
             "type_text": self._interaction.type_text,
             "get_text": self._interaction.get_text,
+            "get_attribute": self._interaction.get_attribute,
+            "press_key": self._interaction.press_key,
             "wait_for": self._interaction.wait_for,
             "wait_for_dom_stable": self._interaction.wait_for_dom_stable,
             # Script / media
@@ -55,6 +65,16 @@ class ToolRegistry:
             "close_session": self._session.close_session,
             "list_sessions": self._session.list_sessions,
             "get_session_info": self._session.get_session_info,
+            # Window / tab management
+            "window": self._window.window,
+            # Frame / iFrame management
+            "frame": self._frame.frame,
+            # Alert / dialog handling
+            "alert": self._alert.alert,
+            # Cookie management
+            "add_cookie": self._cookie.add_cookie,
+            "get_cookies": self._cookie.get_cookies,
+            "delete_cookie": self._cookie.delete_cookie,
         }
 
     def call(self, tool_name: str, arguments: dict[str, Any]) -> Any:
@@ -89,6 +109,15 @@ class ToolRegistry:
             self._describe("get_text",
                            "Get the visible inner text of an element",
                            {"selector": "string"}, required=["selector"]),
+            self._describe("get_attribute",
+                           "Get an attribute value from a DOM element (e.g. href, value, class)",
+                           {"selector": "string", "attribute": "string"},
+                           required=["selector", "attribute"]),
+            self._describe("press_key",
+                           "Press a keyboard key (e.g. Enter, Tab, Escape, a). "
+                           "Optionally target a specific element.",
+                           {"key": "string", "selector": "string"},
+                           required=["key"]),
             self._describe("wait_for",
                            "Wait until a CSS selector is visible",
                            {"selector": "string", "timeout": "number"},
@@ -127,6 +156,34 @@ class ToolRegistry:
             self._describe("get_session_info",
                            "Get metadata for a session",
                            {}),
+            self._describe("window",
+                           "Manage browser windows and tabs. "
+                           "Actions: list, switch, switch_latest, close. "
+                           "For switch, provide handle or index.",
+                           {"action": "string", "handle": "string", "index": "number"},
+                           required=["action"]),
+            self._describe("frame",
+                           "Switch focus to a frame or back to the main page. "
+                           "Actions: switch (provide identifier), default.",
+                           {"action": "string", "identifier": "string"},
+                           required=["action"]),
+            self._describe("alert",
+                           "Handle browser alert, confirm, or prompt dialogs. "
+                           "Actions: accept, dismiss, get_text, send_text.",
+                           {"action": "string", "text": "string"},
+                           required=["action"]),
+            self._describe("add_cookie",
+                           "Add a cookie. Browser must be on a page from the cookie's domain.",
+                           {"name": "string", "value": "string",
+                            "domain": "string", "path": "string",
+                            "secure": "boolean", "http_only": "boolean"},
+                           required=["name", "value"]),
+            self._describe("get_cookies",
+                           "Get cookies. Returns all or a specific one by name.",
+                           {"name": "string"}),
+            self._describe("delete_cookie",
+                           "Delete cookies. Deletes all or a specific one by name.",
+                           {"name": "string"}),
         ]
 
     # ------------------------------------------------------------------ #

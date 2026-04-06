@@ -108,3 +108,51 @@ class InteractionTools(BaseTool):
         session = self._get_session(session_id)
         session.wait_for_dom_stable(timeout=timeout)
         return {"success": True, "session_id": session.session_id}
+
+    @with_error_screenshot
+    def get_attribute(
+        self,
+        selector: str,
+        attribute: str,
+        session_id: str | None = None,
+    ) -> dict:
+        """
+        Get an attribute value from a DOM element.
+
+        Args:
+            selector:  CSS selector of the element.
+            attribute: Attribute name (e.g. "href", "value", "class").
+            session_id: Session to target.
+        """
+        session = self._get_session(session_id)
+        value = session.get_attribute(selector, attribute)
+        return {
+            "success": True,
+            "session_id": session.session_id,
+            "selector": selector,
+            "attribute": attribute,
+            "value": value,
+        }
+
+    @with_error_screenshot
+    def press_key(
+        self,
+        key: str,
+        selector: str | None = None,
+        session_id: str | None = None,
+    ) -> dict:
+        """
+        Press a keyboard key.
+
+        Args:
+            key:        Key name (e.g. "Enter", "Tab", "Escape", "a").
+            selector:   Optional CSS selector to send the key to.
+            session_id: Session to target.
+        """
+        session = self._get_session(session_id)
+        session.press_key(key, selector=selector)
+        return {
+            "success": True,
+            "session_id": session.session_id,
+            "key": key,
+        }

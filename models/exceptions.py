@@ -66,3 +66,19 @@ class TimeoutError(SeleniumMCPError):  # noqa: A001
 
 class ConfigurationError(SeleniumMCPError):
     """Raised when the server configuration is invalid."""
+
+
+class WindowError(SeleniumMCPError):
+    """Raised when window/tab management fails."""
+
+
+class FrameError(SeleniumMCPError):
+    """Raised when frame switching fails."""
+
+
+class AlertError(SeleniumMCPError):
+    """Raised when alert/dialog interaction fails."""
+
+
+class CookieError(SeleniumMCPError):
+    """Raised when cookie management fails."""

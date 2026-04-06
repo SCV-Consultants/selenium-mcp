@@ -45,9 +45,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://gitlab.com/SCV-Consultants/selenium-mcp"
-Repository = "https://gitlab.com/SCV-Consultants/selenium-mcp"
-Issues = "https://gitlab.com/SCV-Consultants/selenium-mcp/-/issues"
+Homepage = "https://github.com/SCV-Consultants/selenium-mcp"
+Repository = "https://github.com/SCV-Consultants/selenium-mcp"
+Issues = "https://github.com/SCV-Consultants/selenium-mcp/issues"
 
 [project.scripts]
 selenium-mcp = "server:main"
