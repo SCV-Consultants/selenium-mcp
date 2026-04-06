@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "selenium-mcp-server-bidi"
+name = "mcp_selenium"
 version = "1.0.0"
 description = "Production-ready MCP server integrating Selenium 4 (BiDi) for browser automation"
 readme = "README.md"

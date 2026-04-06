@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/selenium-mcp-server-bidi
+      url: https://pypi.org/p/mcp_selenium
     permissions:
       id-token: write  # Required for trusted publishing (OIDC)
     steps:
