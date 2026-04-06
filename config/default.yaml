@@ -1,0 +1,27 @@
+server:
+  host: "127.0.0.1"
+  port: 8765
+  log_level: "INFO"
+  debug: false
+
+browser:
+  default: "chrome"
+  headless: true
+  max_sessions: 5
+  implicit_wait: 5
+  page_load_timeout: 30
+  script_timeout: 10
+  window_size: [1920, 1080]
+
+bidi:
+  enabled: true
+  console_events: true
+  network_events: true
+
+retry:
+  max_attempts: 3
+  backoff_seconds: 1.0
+
+screenshot:
+  on_error: true
+  directory: "screenshots"

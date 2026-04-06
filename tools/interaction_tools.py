@@ -1,0 +1,111 @@
+"""Element interaction MCP tools (click, type, get_text, wait_for)."""
+
+from __future__ import annotations
+
+import logging
+from typing import Optional
+
+from tools.base import BaseTool, with_error_screenshot
+
+logger = logging.getLogger("selenium_mcp.tools.interaction")
+
+
+class InteractionTools(BaseTool):
+    """MCP tools for interacting with page elements."""
+
+    @with_error_screenshot
+    def click(self, selector: str, session_id: Optional[str] = None) -> dict:
+        """
+        Click the DOM element matched by *selector* (CSS selector).
+
+        Args:
+            selector:   CSS selector string.
+            session_id: Session to target; auto-selected if only one exists.
+        """
+        session = self._get_session(session_id)
+        session.click(selector)
+        return {"success": True, "session_id": session.session_id, "selector": selector}
+
+    @with_error_screenshot
+    def type_text(
+        self,
+        selector: str,
+        text: str,
+        session_id: Optional[str] = None,
+    ) -> dict:
+        """
+        Clear *selector* and type *text* into it.
+
+        Args:
+            selector:   CSS selector of the input field.
+            text:       Text to type.
+            session_id: Session to target.
+        """
+        session = self._get_session(session_id)
+        session.type_text(selector, text)
+        return {
+            "success": True,
+            "session_id": session.session_id,
+            "selector": selector,
+            "characters_typed": len(text),
+        }
+
+    @with_error_screenshot
+    def get_text(self, selector: str, session_id: Optional[str] = None) -> dict:
+        """
+        Return the visible inner text of *selector*.
+
+        Returns:
+            dict with ``text`` key.
+        """
+        session = self._get_session(session_id)
+        text = session.get_text(selector)
+        return {
+            "success": True,
+            "session_id": session.session_id,
+            "selector": selector,
+            "text": text,
+        }
+
+    @with_error_screenshot
+    def wait_for(
+        self,
+        selector: str,
+        timeout: float = 10.0,
+        session_id: Optional[str] = None,
+    ) -> dict:
+        """
+        Wait until *selector* is visible on the page.
+
+        Args:
+            selector: CSS selector to wait for.
+            timeout:  Maximum wait time in seconds (default 10).
+            session_id: Session to target.
+        """
+        session = self._get_session(session_id)
+        session.wait_for(selector, timeout)
+        return {
+            "success": True,
+            "session_id": session.session_id,
+            "selector": selector,
+            "timeout": timeout,
+        }
+
+    @with_error_screenshot
+    def wait_for_dom_stable(
+        self,
+        timeout: float = 5.0,
+        session_id: Optional[str] = None,
+    ) -> dict:
+        """
+        Smart DOM-stability wait – polls until the DOM stops mutating.
+
+        Useful after AJAX-heavy interactions to avoid flaky selectors.
+
+        Args:
+            timeout:    Max time to wait in seconds.
+            session_id: Session to target.
+        """
+        session = self._get_session(session_id)
+        session.wait_for_dom_stable(timeout=timeout)
+        return {"success": True, "session_id": session.session_id}

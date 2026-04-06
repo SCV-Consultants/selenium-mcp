@@ -1,0 +1,13 @@
+# Core dependencies
+selenium>=4.20.0
+mcp>=1.0.0
+pyyaml>=6.0
+webdriver-manager>=4.0.1
+
+# Development / testing (optional)
+pytest>=8.0
+pytest-asyncio>=0.23
+pytest-mock>=3.12
+ruff>=0.4
+mypy>=1.10
+types-PyYAML
