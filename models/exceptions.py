@@ -1,10 +1,10 @@
-"""Custom exception hierarchy for the selenium-mcp server."""
+"""Custom exception hierarchy for the mcp-selenium server."""
 
 from __future__ import annotations
 
 
 class SeleniumMCPError(Exception):
-    """Base exception for all selenium-mcp errors."""
+    """Base exception for all mcp-selenium errors."""
 
     def __init__(self, message: str, session_id: str | None = None) -> None:
         super().__init__(message)

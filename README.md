@@ -1,4 +1,4 @@
-# selenium-mcp
+# mcp-selenium
 
 A **production-ready MCP (Model Context Protocol) server** that exposes Selenium 4 browser automation as MCP tools. Supports Chrome and Firefox with full BiDi (Bidirectional API) event streaming.
 
