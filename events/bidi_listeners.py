@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from models.events import BrowserEvent, ConsoleLogEvent
 from models.network import ConsoleLog
@@ -36,9 +36,9 @@ class BiDiListenerManager:
 
     def __init__(
         self,
-        session: "BrowserSession",
-        dispatcher: "EventDispatcher",
-        loop: Optional[asyncio.AbstractEventLoop] = None,
+        session: BrowserSession,
+        dispatcher: EventDispatcher,
+        loop: asyncio.AbstractEventLoop | None = None,
     ) -> None:
         self._session = session
         self._dispatcher = dispatcher

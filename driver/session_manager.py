@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
 
 from config.settings import Settings
 from driver.factory import build_driver
@@ -25,7 +24,7 @@ class SessionManager:
     def __init__(self, settings: Settings, dispatcher) -> None:
         self._settings = settings
         self._dispatcher = dispatcher
-        self._sessions: Dict[str, BrowserSession] = {}
+        self._sessions: dict[str, BrowserSession] = {}
 
     # ------------------------------------------------------------------ #
     # CRUD
@@ -33,8 +32,8 @@ class SessionManager:
 
     def create_session(
         self,
-        browser: Optional[str] = None,
-        headless: Optional[bool] = None,
+        browser: str | None = None,
+        headless: bool | None = None,
     ) -> BrowserSession:
         """
         Create a new browser session.
@@ -77,7 +76,7 @@ class SessionManager:
             raise SessionNotFoundError(f"Session not found: {session_id!r}")
         return session
 
-    def get_or_default(self, session_id: Optional[str] = None) -> BrowserSession:
+    def get_or_default(self, session_id: str | None = None) -> BrowserSession:
         """
         Return the session identified by *session_id*.
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
 
 from tools.base import BaseTool, with_error_screenshot
 
@@ -17,7 +16,7 @@ class ScriptTools(BaseTool):
     def execute_js(
         self,
         script: str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> dict:
         """
         Execute arbitrary JavaScript inside the browser.
@@ -38,7 +37,7 @@ class ScriptTools(BaseTool):
         }
 
     @with_error_screenshot
-    def screenshot(self, session_id: Optional[str] = None) -> dict:
+    def screenshot(self, session_id: str | None = None) -> dict:
         """
         Capture a viewport screenshot.
 

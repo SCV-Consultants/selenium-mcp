@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
 from models.exceptions import ConfigurationError
-
 
 _DEFAULT_CONFIG_PATH = Path(__file__).parent / "default.yaml"
 
@@ -27,7 +26,7 @@ class Settings:
     # ------------------------------------------------------------------ #
     # Defaults
     # ------------------------------------------------------------------ #
-    _DEFAULTS: Dict[str, Any] = {
+    _DEFAULTS: dict[str, Any] = {
         "server": {
             "host": "127.0.0.1",
             "port": 8765,
@@ -58,8 +57,8 @@ class Settings:
         },
     }
 
-    def __init__(self, config_file: Optional[Path] = None) -> None:
-        self._data: Dict[str, Any] = self._deep_copy(self._DEFAULTS)
+    def __init__(self, config_file: Path | None = None) -> None:
+        self._data: dict[str, Any] = self._deep_copy(self._DEFAULTS)
         self._load_yaml(config_file)
         self._apply_env()
 
@@ -108,7 +107,7 @@ class Settings:
         return float(self._get("browser.script_timeout"))
 
     @property
-    def window_size(self) -> List[int]:
+    def window_size(self) -> list[int]:
         raw = self._get("browser.window_size")
         return [int(raw[0]), int(raw[1])]
 
@@ -160,14 +159,15 @@ class Settings:
             node = node.setdefault(k, {})
         node[keys[-1]] = value
 
-    def _load_yaml(self, path: Optional[Path]) -> None:
+    def _load_yaml(self, path: Path | None) -> None:
+        env_config = os.environ.get("SMCP_CONFIG_FILE", "")
         candidates = [
             path,
-            Path(os.environ.get("SMCP_CONFIG_FILE", "")),
+            Path(env_config) if env_config else None,
             _DEFAULT_CONFIG_PATH,
         ]
         for candidate in candidates:
-            if candidate and candidate.exists():
+            if candidate and candidate.is_file():
                 try:
                     with candidate.open("r", encoding="utf-8") as fh:
                         data = yaml.safe_load(fh) or {}

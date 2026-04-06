@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from tools.base import BaseTool, with_error_screenshot
 
@@ -14,7 +13,7 @@ class InteractionTools(BaseTool):
     """MCP tools for interacting with page elements."""
 
     @with_error_screenshot
-    def click(self, selector: str, session_id: Optional[str] = None) -> dict:
+    def click(self, selector: str, session_id: str | None = None) -> dict:
         """
         Click the DOM element matched by *selector* (CSS selector).
 
@@ -31,7 +30,7 @@ class InteractionTools(BaseTool):
         self,
         selector: str,
         text: str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> dict:
         """
         Clear *selector* and type *text* into it.
@@ -51,7 +50,7 @@ class InteractionTools(BaseTool):
         }
 
     @with_error_screenshot
-    def get_text(self, selector: str, session_id: Optional[str] = None) -> dict:
+    def get_text(self, selector: str, session_id: str | None = None) -> dict:
         """
         Return the visible inner text of *selector*.
 
@@ -72,7 +71,7 @@ class InteractionTools(BaseTool):
         self,
         selector: str,
         timeout: float = 10.0,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> dict:
         """
         Wait until *selector* is visible on the page.
@@ -95,7 +94,7 @@ class InteractionTools(BaseTool):
     def wait_for_dom_stable(
         self,
         timeout: float = 5.0,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> dict:
         """
         Smart DOM-stability wait – polls until the DOM stops mutating.

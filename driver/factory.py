@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -18,7 +17,7 @@ from models.session import BrowserType
 logger = logging.getLogger("selenium_mcp.driver.factory")
 
 
-def build_chrome_driver(settings: Settings, headless: Optional[bool] = None) -> webdriver.Chrome:
+def build_chrome_driver(settings: Settings, headless: bool | None = None) -> webdriver.Chrome:
     """Instantiate a Chrome WebDriver with BiDi and CDP options."""
     opts = ChromeOptions()
 
@@ -50,13 +49,16 @@ def build_chrome_driver(settings: Settings, headless: Optional[bool] = None) -> 
         driver.set_page_load_timeout(settings.page_load_timeout)
         driver.set_script_timeout(settings.script_timeout)
         driver.implicitly_wait(settings.implicit_wait)
-        logger.debug("Chrome driver created (headless=%s, bidi=%s)", use_headless, settings.bidi_enabled)
+        logger.debug(
+            "Chrome driver created (headless=%s, bidi=%s)",
+            use_headless, settings.bidi_enabled,
+        )
         return driver
     except Exception as exc:
         raise SessionCreationError(f"Failed to create Chrome driver: {exc}") from exc
 
 
-def build_firefox_driver(settings: Settings, headless: Optional[bool] = None) -> webdriver.Firefox:
+def build_firefox_driver(settings: Settings, headless: bool | None = None) -> webdriver.Firefox:
     """Instantiate a Firefox WebDriver with BiDi support."""
     opts = FirefoxOptions()
 
@@ -78,7 +80,10 @@ def build_firefox_driver(settings: Settings, headless: Optional[bool] = None) ->
         driver.set_page_load_timeout(settings.page_load_timeout)
         driver.set_script_timeout(settings.script_timeout)
         driver.implicitly_wait(settings.implicit_wait)
-        logger.debug("Firefox driver created (headless=%s, bidi=%s)", use_headless, settings.bidi_enabled)
+        logger.debug(
+            "Firefox driver created (headless=%s, bidi=%s)",
+            use_headless, settings.bidi_enabled,
+        )
         return driver
     except Exception as exc:
         raise SessionCreationError(f"Failed to create Firefox driver: {exc}") from exc
@@ -87,7 +92,7 @@ def build_firefox_driver(settings: Settings, headless: Optional[bool] = None) ->
 def build_driver(
     browser: BrowserType,
     settings: Settings,
-    headless: Optional[bool] = None,
+    headless: bool | None = None,
 ) -> webdriver.Remote:
     """Dispatch to the correct browser factory."""
     if browser == BrowserType.CHROME:

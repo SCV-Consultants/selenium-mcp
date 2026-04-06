@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 
 @dataclass
@@ -14,14 +14,14 @@ class NetworkLog:
     request_id: str
     url: str
     method: str
-    request_headers: Dict[str, str] = field(default_factory=dict)
-    request_body: Optional[str] = None
-    response_status: Optional[int] = None
-    response_headers: Dict[str, str] = field(default_factory=dict)
-    response_body: Optional[str] = None
-    duration_ms: Optional[float] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    error: Optional[str] = None
+    request_headers: dict[str, str] = field(default_factory=dict)
+    request_body: str | None = None
+    response_status: int | None = None
+    response_headers: dict[str, str] = field(default_factory=dict)
+    response_body: str | None = None
+    duration_ms: float | None = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    error: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -45,7 +45,7 @@ class InterceptRule:
 
     pattern: str
     action: str = "log"  # log | block | modify
-    modify_response: Optional[Dict[str, Any]] = None
+    modify_response: dict[str, Any] | None = None
     active: bool = True
 
     def to_dict(self) -> dict:
@@ -63,10 +63,10 @@ class ConsoleLog:
 
     level: str
     message: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    source: Optional[str] = None
-    line_number: Optional[int] = None
-    column_number: Optional[int] = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    source: str | None = None
+    line_number: int | None = None
+    column_number: int | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -87,9 +87,9 @@ class PerformanceMetrics:
     dom_content_loaded: float = 0.0
     dom_complete: float = 0.0
     load_event_end: float = 0.0
-    first_paint: Optional[float] = None
-    first_contentful_paint: Optional[float] = None
-    raw: Dict[str, Any] = field(default_factory=dict)
+    first_paint: float | None = None
+    first_contentful_paint: float | None = None
+    raw: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {

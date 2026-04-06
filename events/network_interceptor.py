@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import fnmatch
 import logging
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING
 
 from models.network import InterceptRule
 
@@ -32,9 +32,9 @@ class NetworkInterceptor:
     experimental in Firefox).
     """
 
-    def __init__(self, session: "BrowserSession") -> None:
+    def __init__(self, session: BrowserSession) -> None:
         self._session = session
-        self._rules: Dict[str, InterceptRule] = {}
+        self._rules: dict[str, InterceptRule] = {}
         self._cdp_enabled = False
 
     # ------------------------------------------------------------------ #
@@ -64,7 +64,7 @@ class NetworkInterceptor:
         self._rules.pop(pattern, None)
         self._apply_cdp_intercept()
 
-    def list_rules(self) -> List[dict]:
+    def list_rules(self) -> list[dict]:
         return [r.to_dict() for r in self._rules.values()]
 
     # ------------------------------------------------------------------ #
@@ -95,7 +95,7 @@ class NetworkInterceptor:
     # Pattern matching helper
     # ------------------------------------------------------------------ #
 
-    def matches_any(self, url: str) -> Optional[InterceptRule]:
+    def matches_any(self, url: str) -> InterceptRule | None:
         """Return the first matching active rule for *url*, or None."""
         for rule in self._rules.values():
             if rule.active and fnmatch.fnmatch(url, rule.pattern):

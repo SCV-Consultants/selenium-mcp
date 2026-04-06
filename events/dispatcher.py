@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Callable, Coroutine, Dict, List, Optional
+from collections.abc import Callable, Coroutine
 
 from models.events import BrowserEvent, EventType
 
@@ -39,10 +39,10 @@ class EventDispatcher:
     """
 
     def __init__(self, queue_maxsize: int = 1000) -> None:
-        self._handlers: Dict[EventType, List[AsyncHandler]] = defaultdict(list)
+        self._handlers: dict[EventType, list[AsyncHandler]] = defaultdict(list)
         self._queue: asyncio.Queue[BrowserEvent] = asyncio.Queue(maxsize=queue_maxsize)
         self._running = False
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
 
     # ------------------------------------------------------------------ #
     # Subscription API
@@ -71,7 +71,11 @@ class EventDispatcher:
         except asyncio.QueueFull:
             logger.warning("Event queue full – dropping %s event", event.event_type.value)
 
-    def publish_sync(self, event: BrowserEvent, loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
+    def publish_sync(
+        self,
+        event: BrowserEvent,
+        loop: asyncio.AbstractEventLoop | None = None,
+    ) -> None:
         """
         Thread-safe publish from a non-async context (e.g. Selenium callbacks).
 
@@ -85,7 +89,10 @@ class EventDispatcher:
             try:
                 self._queue.put_nowait(event)
             except asyncio.QueueFull:
-                logger.warning("Event queue full – dropping %s event (sync)", event.event_type.value)
+                logger.warning(
+                    "Event queue full – dropping %s event (sync)",
+                    event.event_type.value,
+                )
 
     # ------------------------------------------------------------------ #
     # Dispatcher loop
@@ -115,7 +122,7 @@ class EventDispatcher:
         while self._running:
             try:
                 event = await asyncio.wait_for(self._queue.get(), timeout=0.5)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
 
             handlers = self._handlers.get(event.event_type, [])

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from events.network_interceptor import NetworkInterceptor
 from tools.base import BaseTool
@@ -14,7 +13,7 @@ logger = logging.getLogger("selenium_mcp.tools.log")
 class LogTools(BaseTool):
     """MCP tools for log retrieval and network interception."""
 
-    def get_console_logs(self, session_id: Optional[str] = None) -> dict:
+    def get_console_logs(self, session_id: str | None = None) -> dict:
         """
         Return all console log entries captured for the session.
 
@@ -32,7 +31,7 @@ class LogTools(BaseTool):
             "logs": logs,
         }
 
-    def get_network_logs(self, session_id: Optional[str] = None) -> dict:
+    def get_network_logs(self, session_id: str | None = None) -> dict:
         """
         Return all network request/response log entries for the session.
 
@@ -48,7 +47,7 @@ class LogTools(BaseTool):
             "logs": logs,
         }
 
-    def get_performance_metrics(self, session_id: Optional[str] = None) -> dict:
+    def get_performance_metrics(self, session_id: str | None = None) -> dict:
         """
         Return browser performance timing data for the current page.
 
@@ -67,7 +66,7 @@ class LogTools(BaseTool):
         self,
         pattern: str,
         action: str = "log",
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> dict:
         """
         Register a URL interception rule for the session.

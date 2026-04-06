@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict
+from collections.abc import Callable
+from typing import Any
 
 from driver.session_manager import SessionManager
 from tools.interaction_tools import InteractionTools
@@ -29,7 +30,7 @@ class ToolRegistry:
         self._logs = LogTools(session_manager)
         self._session = SessionTools(session_manager)
 
-        self._tools: Dict[str, Callable[..., Any]] = {
+        self._tools: dict[str, Callable[..., Any]] = {
             # Navigation
             "open_page": self._navigation.open_page,
             "navigate_back": self._navigation.navigate_back,
@@ -56,7 +57,7 @@ class ToolRegistry:
             "get_session_info": self._session.get_session_info,
         }
 
-    def call(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+    def call(self, tool_name: str, arguments: dict[str, Any]) -> Any:
         """
         Invoke a registered tool by name.
 
@@ -70,7 +71,7 @@ class ToolRegistry:
         handler = self._tools[tool_name]
         return handler(**arguments)
 
-    def list_tools(self) -> list[Dict[str, Any]]:
+    def list_tools(self) -> list[dict[str, Any]]:
         """Return MCP-formatted tool descriptors for all registered tools."""
         return [
             self._describe("open_page", "Navigate the browser to a URL",
@@ -136,13 +137,13 @@ class ToolRegistry:
     def _describe(
         name: str,
         description: str,
-        params: Dict[str, str],
+        params: dict[str, str],
         required: list[str] | None = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build a minimal MCP tool descriptor."""
-        properties: Dict[str, Any] = {}
+        properties: dict[str, Any] = {}
         for param_name, param_type in params.items():
-            entry: Dict[str, Any] = {}
+            entry: dict[str, Any] = {}
             if param_type == "string":
                 entry["type"] = "string"
             elif param_type == "number":
@@ -156,7 +157,7 @@ class ToolRegistry:
         # Always add optional session_id
         properties["session_id"] = {"type": "string", "description": "Session ID (optional)"}
 
-        schema: Dict[str, Any] = {"type": "object", "properties": properties}
+        schema: dict[str, Any] = {"type": "object", "properties": properties}
         if required:
             schema["required"] = required
 
